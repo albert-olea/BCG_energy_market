@@ -1,0 +1,294 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Dec 29 12:22:05 2020
+
+@author: Albert
+This file was created to show exploratory data analysis for BCG's virtuaal experience. Thank You. 
+"""
+import pandas as pd
+import os
+import datetime
+import numpy as np
+import seaborn as sns #visualisation
+import matplotlib.pyplot as plt #visualisation
+from scipy import stats
+sns.set(color_codes=True)
+os.getcwd()
+
+# EDA and Data cleaning Table
+#   1. Loading data through pandas
+#       A. Loading three dataframes
+#   2. Data cleaning
+#       A. Drop Duplicates
+#       C. Removing Columns
+#       B. Missing data / Empty values
+#       D. Combining three dataframes
+#   3. General statistics of a dataframe
+#       A. Data types
+#       B. Data statistics
+#   4. Format/ Convert data
+#       A. Dates
+#   5. Data visualization
+#       A. Churn percentage
+#       B. Detecting outliers using boxplots
+#       C. Using a correlation matrix
+#       D. Final Thoughts
+#   6. Saving the data as an excel file
+
+# Feature Engineering 
+#   7. Data Evaluation
+#   8. Detecting outliers
+#       A. Standard Deviation
+#       B. Percentiles
+#   9. Logistic Regression and Model Testing
+""" ---------------------------- SUB TASK ONE CLEAN THE DATA ---------------------------- """
+
+
+# 1. import data into dataframes
+df_train = pd.read_csv ('C:/Users/Albert/BCG_data/ml_case_training_data.csv')
+df_hist = pd.read_csv ('C:/Users/Albert/BCG_data/ml_case_training_hist_data.csv')
+df_churn = pd.read_csv ('C:/Users/Albert/BCG_data/ml_case_training_output.csv')
+
+df_train.isnull().sum()
+df_hist.isnull().sum()
+
+# 2. Data Cleaning
+""" A. DROP DUPLICATES - remove duplicate id's """
+df_train = df_train.drop_duplicates(subset=['id'])
+df_hist = df_hist.drop_duplicates(subset=['id'])
+
+""" point out columns with large numbers of missing values in the dataframe df_missing """
+df_missing = df_train.columns[df_train.isnull().any()]
+
+""" B. remove 'activity_new', 'channel_sales', 'campaign_disc_ele','date_first_activ', 'forecast_base_bill_ele', 
+                        'forecast_base_bill_year', 'forecast_bill_12m', 'forecast_cons', 'forecast_discount_energy', 
+                        'forecast_price_energy_p1', 'forecast_price_energy_p2','forecast_price_pow_p1' columns from df """
+
+df_train = df_train.drop(columns = ['activity_new', 'channel_sales', 'campaign_disc_ele','date_first_activ', 'forecast_base_bill_ele', 
+                        'forecast_base_bill_year', 'forecast_bill_12m', 'forecast_cons', 'forecast_discount_energy', 
+                        'forecast_price_energy_p1', 'forecast_price_energy_p2','forecast_price_pow_p1'])
+
+""" C. Remove columns with missing values are listed in the dataframe df_missing """
+df_train = df_train.dropna(subset=['date_end', 'pow_max', 'margin_gross_pow_ele', 'margin_net_pow_ele', 'net_margin'])
+df_hist = df_hist.dropna(subset=['price_p1_var', 'price_p2_var', 'price_p3_var', 'price_p1_fix', 'price_p2_fix', 'price_p3_fix'])
+
+""" D. Combining the three dataframes train hist and churn into one df """
+"""merge output dataframe with case_training by id to include churn values in case_training df"""
+df = pd.merge(df_train, df_hist, on='id')
+df = pd.merge(df, df_churn, on='id')
+df.shape
+
+
+
+""" ---------------------------- SUB TASK TWO EXPLORATORY DATA ANALYSIS ---------------------------- """
+
+"""CHECK IF CURRENT MISSING VALUES MAKE SENSE"""
+df_missing = df.columns[df.isnull().any()]
+df[df_missing].isna().sum() 
+
+# 3. General Statistics
+""" A. Data types in the dataframe"""
+df.dtypes
+
+""" B. BASIC STATISTICS of the dataframe"""
+df.describe()
+
+# 4. Data Format
+""" A. DATA TYPE CONVERSION """
+# Date columns are in object format and can be converted to integer format but since this analysis is
+# based on price and churn, we will not be doing any data type conversion.train["has_gas"]=train["has_gas"].replace(["t", "f"],[1,0])
+
+df["has_gas"]=df["has_gas"].replace(["t", "f"],[1,0])
+
+
+# 5. Data Visualization
+
+""" A. CHURN DATA VISUALIZATION"""
+
+# Calculate churn percentage (it's about 10%)
+churn = df[["id","churn"]]
+churn_total = churn.groupby(churn["churn"]).count()
+churn_percentage = churn_total/churn_total.sum()*100
+
+def plot_stacked_bars(dataframe, title_, size_=(18, 10), rot_=0, legend_="upper right"):
+    """
+     Plot stacked bars with annotations
+     """
+    ax = dataframe.plot(kind="bar",
+                         stacked=True,
+                         figsize=size_,
+                         rot=rot_,
+                         title=title_)
+     # Annotate bars
+    annotate_stacked_bars(ax, textsize=14)
+     # Rename legend
+    plt.legend(["Retention", "Churn"], loc=legend_)
+     # Labels
+    plt.ylabel("Company base (%)")
+    plt.show()
+
+def annotate_stacked_bars(ax, pad=0.99, colour="white", textsize=13):
+    """
+    Add value annotations to the bars
+    """
+    # Iterate over the plotted rectanges/bars
+    for p in ax.patches:
+        # Calculate annotation
+        value = str(round(p.get_height(),1))
+        # If value is 0 do not annotate
+        if value == '0.0':
+            continue
+        ax.annotate(value,
+                    ((p.get_x()+ p.get_width()/2)*pad-0.05, (p.get_y()+p.get_height()/2)*pad),
+                    color=colour,
+                    size=textsize,
+                    )
+
+plot_stacked_bars(churn_percentage.transpose(),"Churning status", (5,5), legend_="lower right")
+
+""" B. DETECTING OUTLIERS USING BOX PLOTS"""
+#sns.boxplot(x=df['cons_gas_12m'])
+#sns.boxplot(x=df['forecast_cons_year'])
+#sns.boxplot(x=df['nb_prod_act'])
+#sns.boxplot(x=df['num_years_antig'])
+sns.boxplot(x=df['cons_12m'])                                   #has significant outlier in boxplot
+sns.boxplot(x=df['net_margin'])                                 #has significant outlier in boxplot
+sns.boxplot(x=df['margin_gross_pow_ele'])                       
+sns.boxplot(x=df['cons_last_month'])                            #has significant outlier in boxplot
+sns.boxplot(x=df['margin_gross_pow_ele'])
+sns.boxplot(x=df['margin_net_pow_ele'])
+sns.boxplot(x=df['price_p1_var'])                               #has significant outlier in boxplot
+sns.boxplot(x=df['price_p2_var'])
+sns.boxplot(x=df['price_p3_var'])
+sns.boxplot(x=df['price_p1_fix'])                               #has significant outlier in boxplot
+sns.boxplot(x=df['price_p2_fix'])
+sns.boxplot(x=df['price_p3_fix'])
+sns.boxplot(x=df['churn'])
+
+""" C. USING A CORRELATION MATRIX"""
+# Creating a correlation heatmap using cons_12m, consumption_last_month, and churn as rows and columns
+df[['cons_12m','cons_last_month','churn']].corr()
+sns.heatmap(df[['cons_12m','cons_last_month','churn']].corr(), annot=True, cmap = 'Reds')
+plt.show()
+
+# Creating a correlation heatmap using net_margin, margin_gross_pow_ele, margin_net_pow_ele, and churn as rows and columns
+df[['net_margin','margin_gross_pow_ele', 'margin_net_pow_ele', 'churn']].corr()
+sns.heatmap(df[['net_margin','margin_gross_pow_ele','margin_net_pow_ele', 'churn']].corr(), annot=True, cmap = 'Reds')
+plt.show()
+
+# Creating a correlation heatmap using price_p1_var, price_p2_var, price_p3_var, and churn as rows and columns
+df[['price_p1_var','price_p2_var', 'price_p3_var', 'churn']].corr()
+sns.heatmap(df[['price_p1_var','price_p2_var','price_p3_var', 'churn']].corr(), annot=True, cmap = 'Reds')
+plt.show()
+
+# Creating a correlation heatmap using price_p1_fix, price_p1_fix, price_p1_fix, and churn as rows and columns
+df[['price_p1_fix','price_p2_fix', 'price_p3_fix', 'churn']].corr()
+sns.heatmap(df[['price_p1_fix','price_p2_fix','price_p3_fix', 'churn']].corr(), annot=True, cmap = 'Reds')
+plt.show()
+
+# we get low correlation for margin and consumption variables with respect to churn. Try using a point-biserial correlation to double check 
+# and get a look at p values.
+
+stats.pointbiserialr(df['cons_12m'], df['churn'])
+stats.pointbiserialr(df['cons_last_month'], df['churn'])
+stats.pointbiserialr(df['net_margin'], df['churn'])
+stats.pointbiserialr(df['margin_gross_pow_ele'], df['churn'])
+stats.pointbiserialr(df['margin_net_pow_ele'], df['churn'])
+stats.pointbiserialr(df['imp_cons'], df['churn'])
+stats.pointbiserialr(df['price_p1_var'], df['churn'])
+stats.pointbiserialr(df['price_p2_var'], df['churn'])
+stats.pointbiserialr(df['price_p3_var'], df['churn'])
+stats.pointbiserialr(df['price_p1_fix'], df['churn'])
+stats.pointbiserialr(df['price_p2_fix'], df['churn'])
+stats.pointbiserialr(df['price_p3_fix'], df['churn'])
+
+""" D. Final Thoughts EDA """
+# based on p-values from point-biserial correlations above, cons_12m, cons_last_month, net_margin, margin_gross_pow_ele, margin_net_pow_ele,
+# price_p2_var, price_p3_var, price_p2_fix, and price_p3_fix are statistically significant! Also, correlation matrix is showing that there 
+# is a higher correlation between price and churn in periods 2 and 3 than any other variable. I would like to further explore the effects 
+# of pricing in periods one and two on customer churn.
+
+#   6. Saving the data as an excel file
+""" ---------------------------- Save final dataframe df to file directory for submission ---------------------------- """
+#df.to_excel('cleaned_data.xlsx')
+
+#   7. Data Evaluation
+#Plotting Distributions to look for 'Skewdness' 
+
+# Remove negative values
+df.loc[df.cons_12m < 0,"cons_12m"] = np.nan
+df.loc[df.cons_gas_12m < 0,"cons_gas_12m"] = np.nan
+df.loc[df.cons_last_month < 0,"cons_last_month"] = np.nan
+df.loc[df.forecast_cons_12m < 0,"forecast_cons_12m"] = np.nan
+df.loc[df.forecast_cons_year < 0,"forecast_cons_year"] = np.nan
+df.loc[df.forecast_meter_rent_12m < 0,"forecast_meter_rent_12m"] = np.nan
+df.loc[df.imp_cons < 0,"imp_cons"] = np.nan
+# Apply log10 transformation
+df["cons_12m"] = np.log10(df["cons_12m"]+1)
+df["cons_gas_12m"] = np.log10(df["cons_gas_12m"]+1)
+df["cons_last_month"] = np.log10(df["cons_last_month"]+1)
+df["forecast_cons_12m"] = np.log10(df["forecast_cons_12m"]+1)
+df["forecast_cons_year"] = np.log10(df["forecast_cons_year"]+1)
+df["forecast_meter_rent_12m"] = np.log10(df["forecast_meter_rent_12m"]+1)
+df["imp_cons"] = np.log10(df["imp_cons"]+1)
+
+#Plot distributions
+
+fig, axs = plt.subplots(nrows=7, figsize=(18,50))
+# Plot histograms
+sns.distplot((df["cons_12m"].dropna()), ax=axs[0])
+sns.distplot((df[df["has_gas"]==1]["cons_gas_12m"].dropna()), ax=axs[1])
+sns.distplot((df["cons_last_month"].dropna()), ax=axs[2])
+sns.distplot((df["forecast_cons_12m"].dropna()), ax=axs[3])
+sns.distplot((df["forecast_cons_year"].dropna()), ax=axs[4])
+sns.distplot((df["forecast_meter_rent_12m"].dropna()), ax=axs[5])
+sns.distplot((df["imp_cons"].dropna()), ax=axs[6])
+plt.show()
+
+#   8. Detecting Outliers
+
+""" A. Using Standard Deviation """
+#Dropping the outlier rows using standard deviation (note that price_p1_var and price_p1_fix were ommited)
+factor = 3
+upper_lim = df['cons_12m'].mean () + df['cons_12m'].std () * factor
+lower_lim = df['cons_12m'].mean () - df['cons_12m'].std () * factor
+
+df = df[(df['cons_12m'] < upper_lim) & (df['cons_12m'] > lower_lim)]
+
+#Dropping the outlier rows using standard deviation
+factor = 3
+upper_lim = df['net_margin'].mean () + df['net_margin'].std () * factor
+lower_lim = df['net_margin'].mean () - df['net_margin'].std () * factor
+
+df = df[(df['net_margin'] < upper_lim) & (df['net_margin'] > lower_lim)]
+
+#Dropping the outlier rows using standard deviation
+factor = 3
+upper_lim = df['cons_last_month'].mean () + df['cons_last_month'].std () * factor
+lower_lim = df['cons_last_month'].mean () - df['cons_last_month'].std () * factor
+
+df = df[(df['net_margin'] < upper_lim) & (df['net_margin'] > lower_lim)]
+
+df = df.drop(columns=['id', "date_activ", "date_end", "date_modif_prod", "date_renewal", 'origin_up', 'price_date'],inplace=True)
+# Using this method we can see a reduction in total rows from 16042 to 15462 (96% of data remains) 
+
+df["churn"] = df["churn"].astype(int)
+Y = df["churn"].values
+X = df.drop(labels = ["churn"],axis = 1)
+# Create Train & Test Data
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=101)
+
+from sklearn.linear_model import LogisticRegression
+model = LogisticRegression()
+result = model.fit(X_train, y_train)
+
+from sklearn import metrics
+prediction_test = model.predict(X_test)
+# Print the prediction accuracy
+print (metrics.accuracy_score(y_test, prediction_test))
+
+# To get the weights of all the variables
+weights = pd.Series(model.coef_[0],
+ index=X.columns.values)
+weights.sort_values(ascending = False)
