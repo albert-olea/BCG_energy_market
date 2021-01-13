@@ -37,3 +37,18 @@ The team now has a good understanding of the data and feels confident to use the
 Sub-task 1: Think through what key drivers of churn could be for our client
 
 Sub-task 2: Build the features in order to get ready to model
+
+Part 4:
+Build your models and test them while keeping in mind you would need data to prove/disprove the hypotheses, as well as to test the effect of a 20% discount on customers at high propensity to churn.
+
+Sub-Task 1:
+
+Build churn model(s) to try to predict the churn probability of any customer, taking into account all the explanatory variables you have constructed in the feature engineering process.
+
+Sub-Task 2:
+
+Evaluate your model, using a holdout set, and with metrics of your choosing. Be sure to pick a metric that would make sense for this business case.
+
+Sub-Task 3:
+
+Interpret the results and use them to formulate your answers to the client’s hypotheses and questions. You will be asked to form these answers into coherent thoughts and recommendations in the next module.
