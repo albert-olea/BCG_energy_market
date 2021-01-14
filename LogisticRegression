@@ -268,26 +268,29 @@ factor = 3
 upper_lim = df['cons_last_month'].mean () + df['cons_last_month'].std () * factor
 lower_lim = df['cons_last_month'].mean () - df['cons_last_month'].std () * factor
 
-df = df[(df['net_margin'] < upper_lim) & (df['net_margin'] > lower_lim)]
-
+df = df[(df['cons_last_month'] < upper_lim) & (df['cons_last_month'] > lower_lim)]
+df.reset_index()
 # Using this method we can see a reduction in total rows from 16042 to 15462 (96% of data remains) 
+
+#drop columns deemed unnecessary for Logistic Regression Calculations
 df.drop(columns=['id', "date_activ", "date_end", "date_modif_prod", "date_renewal", 'origin_up', 'price_date'],inplace=True)
+
 df = df[df['cons_last_month'].notna()]
+df = df[df['cons_gas_12m'].notna()]
 df = df[df['imp_cons'].notna()]
-
 df = df[df['forecast_meter_rent_12m'].notna()]
-
 df = df[df['forecast_cons_12m'].notna()]
-
 df = df[df['forecast_cons_year'].notna()]
-
 df = df[df['forecast_meter_rent_12m'].notna()]
 df["churn"] = df["churn"].astype(int)
+
+
 Y = df["churn"].values
 X = df.drop(labels = ["churn"],axis = 1)
+
 # Create Train & Test Data
 from sklearn.model_selection import train_test_split
-X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=101)
+X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.4, random_state=101)
 
 from sklearn.linear_model import LogisticRegression
 model = LogisticRegression()
@@ -295,6 +298,7 @@ result = model.fit(X_train, y_train)
 
 from sklearn import metrics
 prediction_test = model.predict(X_test)
+
 # Print the prediction accuracy
 print (metrics.accuracy_score(y_test, prediction_test))
 
@@ -303,4 +307,4 @@ weights = pd.Series(model.coef_[0],
  index=X.columns.values)
 weights.sort_values(ascending = False)
 
-# churn prediction accuracy reached 0.85869 in the first run!
+#churn prediction accuracy reached 0.9028846153846154 in the first run!
