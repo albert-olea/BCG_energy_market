@@ -43,8 +43,6 @@ os.getcwd()
 #   9. Logistic Regression and Model Testing
 """ ---------------------------- SUB TASK ONE CLEAN THE DATA ---------------------------- """
 
-
-# 1. import data into dataframes
 # 1. import data into dataframes
 df_train = pd.read_csv ('/Users/yasminrassouli/Documents/BCG Data Science/ml_case_training_data.csv')
 df_hist = pd.read_csv ('/Users/yasminrassouli/Documents/BCG Data Science/ml_case_training_hist_data.csv')
@@ -81,7 +79,7 @@ df.shape
 
 
 
-""" ---------------------------- SUB TASK TWO EXPLORATORY DATA ANALYSIS ---------------------------- """
+""" ---------------------------- EXPLORATORY DATA ANALYSIS ---------------------------- """
 
 """CHECK IF CURRENT MISSING VALUES MAKE SENSE"""
 df_missing = df.columns[df.isnull().any()]
@@ -234,8 +232,8 @@ df["forecast_meter_rent_12m"] = np.log10(df["forecast_meter_rent_12m"]+1)
 df["imp_cons"] = np.log10(df["imp_cons"]+1)
 
 #Plot distributions
-
 fig, axs = plt.subplots(nrows=7, figsize=(18,50))
+
 # Plot histograms
 sns.distplot((df["cons_12m"].dropna()), ax=axs[0])
 sns.distplot((df[df["has_gas"]==1]["cons_gas_12m"].dropna()), ax=axs[1])
@@ -272,8 +270,6 @@ df = df[(df['cons_last_month'] < upper_lim) & (df['cons_last_month'] > lower_lim
 df.reset_index()
 # Using this method we can see a reduction in total rows from 16042 to 15462 (96% of data remains) 
 
-#drop columns deemed unnecessary for Logistic Regression Calculations
-df.drop(columns=['id', "date_activ", "date_end", "date_modif_prod", "date_renewal", 'origin_up', 'price_date'],inplace=True)
 
 df = df[df['cons_last_month'].notna()]
 df = df[df['cons_gas_12m'].notna()]
@@ -284,6 +280,9 @@ df = df[df['forecast_cons_year'].notna()]
 df = df[df['forecast_meter_rent_12m'].notna()]
 df["churn"] = df["churn"].astype(int)
 
+# store later needed columns and drop columns deemed unnecessary for Logistic Regression Calculations
+id_number = df['id']
+df.drop(columns=['id', "date_activ", "date_end", "date_modif_prod", "date_renewal", 'origin_up', 'price_date'],inplace=True)
 
 Y = df["churn"].values
 X = df.drop(labels = ["churn"],axis = 1)
@@ -300,11 +299,29 @@ from sklearn import metrics
 prediction_test = model.predict(X_test)
 
 # Print the prediction accuracy
-print (metrics.accuracy_score(y_test, prediction_test))
-
+print ('Churn predictive model accuracy is ') 
+print(metrics.accuracy_score(y_test, prediction_test))
+    
 # To get the weights of all the variables
 weights = pd.Series(model.coef_[0],
  index=X.columns.values)
 weights.sort_values(ascending = False)
 
-#churn prediction accuracy reached 0.9028846153846154 in the first run!
+# churn prediction accuracy reached 0.90288 in the first run!
+
+# Now,predict each individuals probability to churn
+df['probability_to_churn'] = model.predict_proba(df[X_train.columns])[:,1]
+
+# merge back id_number column to match id's with probability of churn
+
+result = pd.concat([ df, id_number], axis=1)
+result.to_excel('churn_probability_by_id.xlsx')
+
+# Seperate high likely to churn customers from low likely to churn customers
+result_high_prob = result[result['probability_to_churn'] >= 0.20]
+# average probability to churn in this set is 27%
+result_low_prob = result[result['probability_to_churn'] <= 0.20]
+# average probability to churn in this set is 9.5%
+
+
+
